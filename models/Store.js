@@ -42,3 +42,5 @@ const storeSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+export default mongoose.model("Store", storeSchema);
