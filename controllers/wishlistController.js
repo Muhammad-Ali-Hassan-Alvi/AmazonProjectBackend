@@ -20,7 +20,7 @@ export const getWishlist = async (req, res) => {
 export const addToWishlist = async (req, res) => {
   const productId = req.params.productId;
   try {
-    const buyer = await Buyer.findById({ userId: req.user.id });
+    const buyer = await Buyer.findOne({ userId: req.user.id });
 
     if (!buyer) {
       return res.status(404).json({ message: "User Record not Found" });
@@ -44,7 +44,7 @@ export const addToWishlist = async (req, res) => {
     buyer.whishlist.push({ productId });
     await buyer.save();
 
-    const updatedBuyer = await Buyer.findById(buyer._id).populate("whishlist.productId")
+    const updatedBuyer = await Buyer.findOne({ userId: req.user.id }).populate("whishlist.productId")
 
     return res.status(200).json({
       message: "Product added to wishlist",
@@ -59,7 +59,7 @@ export const removeFromWishlist = async (req, res) => {
   const productId = req.params.productId;
 
   try {
-    const buyer = await Buyer.findById(req.user.id);
+    const buyer = await Buyer.findOne({ userId: req.user.id });
 
     if (!buyer) {
       return res.status(404).json({ message: "User Record not Found" });
