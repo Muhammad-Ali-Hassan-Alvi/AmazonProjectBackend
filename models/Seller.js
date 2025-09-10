@@ -6,9 +6,11 @@ const sellerSchema = new mongoose.Schema({
         ref: "User",
         required: true
     },
-    shopName: {
-        type: String,
-        required: true,
+    storeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Store",
+        default: null
+        // required: true,
     },
     products: [{
         productIs: {

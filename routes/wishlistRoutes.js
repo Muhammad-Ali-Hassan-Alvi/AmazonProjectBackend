@@ -9,3 +9,5 @@ const router = express.Router()
 router.post("/wishlist/:productId", protect, authorizeRoles("buyer"), addToWishlist)
 router.delete("/wishlist/:productId", protect, authorizeRoles("buyer"), removeFromWishlist)
 router.get("/wishlist", protect, authorizeRoles("buyer"), getWishlist)
+
+export default router;

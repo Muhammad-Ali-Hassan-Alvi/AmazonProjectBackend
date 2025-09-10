@@ -5,7 +5,7 @@ import Seller from "../models/Seller.js";
 import Buyer from "../models/Buyer.js";
 
 export const registerUser = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, role } = req.body;
 
   try {
     const existingUser = await User.findOne({ email });
@@ -15,17 +15,23 @@ export const registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // if (role === "seller") {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "Shpo nsme is required for sellers" });
+    // }
+
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
+      role,
     });
 
     if (user.role === "buyer") {
       await Buyer.create({ userId: user._id });
-    } else if (user.role === "seller") {
-      const shopName = req.body.shopName;
-      await Seller.create({ userId: user._id, shopName });
+    } else if (role === "seller") {
+      await Seller.create({ userId: user._id });
     }
 
     return res.status(201).json({
@@ -35,6 +41,7 @@ export const registerUser = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {

@@ -4,6 +4,7 @@ import cors from "cors";
 import { connectDB } from "./config/db.js";
 import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes.js";
+import storeRoutes from "./routes/storeRoutes.js"
 
 
 dotenv.config();
@@ -24,7 +25,14 @@ app.use(cookieParser());
 
 app.get('/', (req, res) => res.send('Server Up and Running'));
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`📡 ${req.method} ${req.url} - ${new Date().toISOString()}`);
+  next();
+});
+
 app.use("/api/v1", userRoutes);
+app.use("/api/v1", storeRoutes);
 
 
 app.listen(port, () => {

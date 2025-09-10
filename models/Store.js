@@ -5,6 +5,8 @@ const storeSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      unique: true,
+      trim: true
     },
     description: {
       type: String,
@@ -20,7 +22,8 @@ const storeSchema = new mongoose.Schema(
     },
     logo: {
       type: String,
-      required: true,
+      // required: true,
+      default: "https://via.placeholder.com/150"
     },
     products: [
       {
