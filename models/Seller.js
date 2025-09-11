@@ -12,12 +12,6 @@ const sellerSchema = new mongoose.Schema({
         default: null
         // required: true,
     },
-    products: [{
-        productIs: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Product"
-        }
-    }],
     earnings: {
         type: Number,
         default: 0

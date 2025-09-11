@@ -82,3 +82,93 @@ export const createNewStore = async (req, res) => {
   }
 };
 
+export const getSellerStore = async (req, res) => {
+  try {
+    const seller = await Seller.findOne({ userId: req.user._id });
+
+    if (!seller) {
+      return res.status(404).json({ message: "Seller profile not found" });
+    }
+
+    const store = await Store.findOne({ owner: seller._id }).populate(
+      "products"
+    );
+
+    if (!store) {
+      return res
+        .status(404)
+        .json({ message: "Store not found for this seller" });
+    }
+
+    return res.status(200).json({ store });
+  } catch (error) {
+    console.error("Error fetching seller's store: ", error);
+  }
+};
+
+export const getAllStores = async (req, res) => {
+  try {
+    const stores = await Store.find().populate("products");
+
+    if (!stores) {
+      return res
+        .status(404)
+        .json({ message: "There was an error in Fetching stores" });
+    }
+    return res.status(200).json({ stores });
+  } catch (error) {
+    console.error("Error fetching stores: ", error);
+  }
+};
+
+export const getStorebyId = async (req, res) => {
+  try {
+    const store = await Store.findById(req.params.id).populate("products");
+
+    if (!store) {
+      return res.status(404).json({ message: "Store not found" });
+    }
+
+    return res.status(200).json({ store });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateStore = async (req, res) => {
+  try {
+    const seller = await Seller.findOne({ userId: req.user._id });
+
+    if (!seller) {
+      return res.status(404).json({ message: "Seller profile not found" });
+    }
+
+    const store = await Store.findOne({ owner: req.user._id }).populate(
+      "products"
+    );
+
+    if (!store) {
+      return res.status(404).json({ message: "Store is not found" });
+    }
+
+    store.name = req.body.name || store.name;
+    store.category = req.body.category || store.category;
+    store.logo = req.body.logo || store.logo;
+    store.isActive = req.body.isActive || store.isActive;
+
+    const updatedStore = await store.save();
+
+    if (!updatedStore) {
+      return res.status(403).json({ message: "Failed to update Store" });
+    }
+
+    return res
+      .status(200)
+      .json({ message: "Store updated successfully", store });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal Server Error" })
+  }
+};
+
+
+
