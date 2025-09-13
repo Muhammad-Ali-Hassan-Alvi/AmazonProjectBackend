@@ -143,7 +143,7 @@ export const updateStore = async (req, res) => {
       return res.status(404).json({ message: "Seller profile not found" });
     }
 
-    const store = await Store.findOne({ owner: req.user._id }).populate(
+    const store = await Store.findOne({ owner: seller._id }).populate(
       "products"
     );
 
@@ -166,9 +166,60 @@ export const updateStore = async (req, res) => {
       .status(200)
       .json({ message: "Store updated successfully", store });
   } catch (error) {
-    return res.status(500).json({ message: "Internal Server Error" })
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
+export const deactivateStore = async (req, res) => {
+  try {
+    const seller = await Seller.findOne({ userId: req.user._id });
+    if (!seller) {
+      return res.status(404).json({ message: "User data not found" });
+    }
 
+    const store = await Store.findOne({ owner: seller._id });
+    if (!store) {
+      return res.status(404).json({ message: "Store not found" });
+    }
 
+    store.isActive = req.body.isActive;
+
+    const updatedStore = store.save();
+
+    if (!updatedStore) {
+      return res.status(403).json({ message: "Failed to update Store" });
+    }
+
+    return res
+      .status(200)
+      .json({ message: "The store is updated successfully..", store });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const deleteStore = async (req, res) => {
+  try {
+    const seller = await Seller.findOne({ userId: req.user._id });
+    const storeId = await req.params.id;
+
+    if (!seller) {
+      return res
+        .status(404)
+        .json({ message: "Unable to find the user in our database" });
+    }
+
+    const store = await Store.findOne({ owner: req.user._id });
+
+    if (!store) {
+      return res.status(404).json({ message: "Store not found" });
+    }
+
+    const updatedStore = store.deleteOne(storeId);
+    if (updateStore) {
+      return res.status(200).json({ message: "Store is deleted sucessfully " });
+    }
+  } catch (error) {
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
