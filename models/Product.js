@@ -56,10 +56,33 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    keywords: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
 
+productSchema.pre("save", function (next) {
+  if (this.isModified("title") || this.isModified("description")) {
+    this.keywords = [
+      ...new Set(
+        (this.title + " " + this.description)
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((word) => word.length > 2)
+      ),
+    ];
+  }
+  next();
+});
 export const Product = mongoose.model("Product", productSchema);

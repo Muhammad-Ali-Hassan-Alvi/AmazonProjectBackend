@@ -1,5 +1,5 @@
-import Buyer from "../models/Buyer";
-import User from "../models/User";
+import Buyer from "../models/Buyer.js";
+import User from "../models/User.js";
 
 export const getWishlist = async (req, res) => {
   try {

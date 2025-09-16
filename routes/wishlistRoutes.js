@@ -1,7 +1,7 @@
 import { Router } from "express";
 import express from "express";
 import { getWishlist, removeFromWishlist, addToWishlist } from "../controllers/wishlistController.js";
-import { protect, authorizeRoles } from "../middleware/authMiddlware";
+import { protect, authorizeRoles } from "../middleware/authMiddlware.js";
 
 
 const router = express.Router()

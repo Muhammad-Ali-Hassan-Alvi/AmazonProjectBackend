@@ -124,9 +124,10 @@ export const getUserProfile = async (req, res) => {
         .populate("whishlist.productId")
         .populate("cart.productId");
     } else if (user.role === "seller") {
-      profile = await Seller.findOne({ userId: user._id }).populate(
-        "products.productId"
-      );
+      profile = await Seller.findOne({ userId: user._id }).populate({
+        path: "storeId",
+        populate: { path: "products" }, // this will populate the products array
+      });
     }
 
     return res.status(200).json({ user, profile });
