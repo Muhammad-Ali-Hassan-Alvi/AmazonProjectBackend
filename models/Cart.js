@@ -32,7 +32,7 @@ const cartSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["active", "abandoned", "ordered"],
-      default: active,
+      default: "active",
     },
     total: {
       type: Number,

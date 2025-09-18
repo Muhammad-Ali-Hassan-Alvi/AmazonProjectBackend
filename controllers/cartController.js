@@ -4,7 +4,7 @@ import { Product } from "../models/Product.js";
 
 export const getUserCart = async (req, res) => {
   try {
-    const user = await Buyer.findOne({ userId: req.user._id });
+    const user = await Buyer.findOne({ userId: req.user.id });
     if (!user) {
       return res.status(404).json({ message: "User not Found" });
     }
@@ -53,7 +53,7 @@ export const addToCart = async (req, res) => {
       return res.status(404).json({ message: "Buyers record not Found" });
     }
 
-    let cart = await Cart.findOne({ userId: req.user.id });
+    let cart = await Cart.findOne({ userId: buyer._id });
 
     if (!cart) {
       cart = new Cart({
@@ -113,7 +113,7 @@ export const updateItemQuantity = async (req, res) => {
     }
 
     const product = await Product.findById(productId);
-    if (product < quantity) {
+    if (product.stock < quantity) {
       return res.status(404).json({ message: "Not enough stock" });
     }
 
@@ -162,8 +162,8 @@ export const removeItem = async (req, res) => {
 
     await updatedCart.save();
     return res
-      .status(404)
-      .json({ message: "Cart Updated Successfully ", data: updatedCart });
+      .status(200)
+      .json({ message: "Cart Updated Successfully", data: updatedCart });
   } catch (error) {
     return res
       .status(500)
@@ -171,7 +171,7 @@ export const removeItem = async (req, res) => {
   }
 };
 
-export default clearCart = async (req, res) => {
+export const clearCart = async (req, res) => {
   try {
     const buyer = await Buyer.findOne({ userId: req.user.id });
     if (!buyer) {
