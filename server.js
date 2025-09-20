@@ -5,10 +5,10 @@ import { connectDB } from "./config/db.js";
 import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes.js";
 import storeRoutes from "./routes/storeRoutes.js";
-import { Product } from "./models/Product.js";
 import productRoutes from "./routes/productRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js"
 
 dotenv.config();
 
@@ -39,6 +39,7 @@ app.use("/api/v1", storeRoutes);
 app.use("/api/v1", productRoutes);
 app.use("/api/v1", wishlistRoutes);
 app.use("/api/v1", cartRoutes);
+app.use("/api/v1/order", orderRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
