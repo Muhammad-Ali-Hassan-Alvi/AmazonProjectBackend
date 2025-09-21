@@ -18,7 +18,7 @@ export const createOrder = async (req, res) => {
       status: "active",
     }).populate({
       path: "items.productId",
-      select: "name stock storeId", 
+      select: "name stock store", 
     });
 
     if (!cart || cart.items.length === 0) {
@@ -41,7 +41,7 @@ export const createOrder = async (req, res) => {
         productId: item.productId._id,
         quantity: item.quantity,
         price: item.price,
-        storeId: item.productId.storeId, 
+        storeId: item.productId.store, 
       })),
       totalAmount,
       shippingAddress,
@@ -205,7 +205,7 @@ export const updateOrderStatus = async (req, res) => {
 
 export const getStoreOrders = async (req, res) => {
   try {
-    // FIX: Find the seller profile using the authenticated user's ID
+    
     const seller = await Seller.findOne({ userId: req.user.id });
     if (!seller)
       return res.status(404).json({ message: "Seller profile not found." });
@@ -214,10 +214,9 @@ export const getStoreOrders = async (req, res) => {
         .status(404)
         .json({ message: "This seller does not have an active store." });
 
-    // The rest of your logic here was already correct!
     const orders = await Order.find({ "items.storeId": seller.storeId })
       .populate("items.productId", "title price images")
-      .populate("userId", "name email") // It's helpful for sellers to see buyer info
+      .populate("userId", "name email") 
       .sort({ createdAt: -1 });
 
     if (orders.length === 0) {
