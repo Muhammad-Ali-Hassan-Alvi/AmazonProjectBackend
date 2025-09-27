@@ -12,10 +12,10 @@ const sellerSchema = new mongoose.Schema({
         default: null
         // required: true,
     },
-    earnings: {
-        type: Number,
-        default: 0
-    }
+    // earnings: {
+    //     type: Number,
+    //     default: 0
+    // }
 })
 
 

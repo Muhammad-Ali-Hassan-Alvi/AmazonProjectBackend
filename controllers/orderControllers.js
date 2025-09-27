@@ -4,7 +4,6 @@ import Cart from "../models/Cart.js";
 import { Product } from "../models/Product.js";
 import Seller from "../models/Seller.js";
 
-
 export const createOrder = async (req, res) => {
   try {
     const { shippingAddress } = req.body;
@@ -13,41 +12,72 @@ export const createOrder = async (req, res) => {
     if (!buyer)
       return res.status(404).json({ message: "Buyer profile not found." });
 
+    // This populate logic is PERFECT. You did a great job here.
     const cart = await Cart.findOne({
       userId: buyer._id,
       status: "active",
     }).populate({
       path: "items.productId",
-      select: "name stock store", 
+      select: "name stock storeId category", // NOTE: I changed 'store' to 'storeId' from your schema
+      populate: {
+        path: "category",
+        select: "commissionRate",
+      },
     });
 
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: "Your cart is empty." });
     }
 
-    const totalAmount = cart.total;
+    // Initialize our counters
+    let totalAmount = 0;
+    let totalPlatformFee = 0;
 
+    // --- CALCULATION LOOP ---
+    for (const item of cart.items) {
+      if (!item.productId || !item.productId.category) {
+        throw new Error(
+          `Product data is incomplete for item ${item.productId?._id}. Cannot calculate fees.`
+        );
+      }
+      const itemTotal = item.price * item.quantity;
+      const commissionRate = item.productId.category.commissionRate / 100;
+
+      // Add to the grand totals
+      totalAmount += itemTotal;
+      totalPlatformFee += itemTotal * commissionRate; // FIX #1: Use += to accumulate the fees
+    }
+
+    const totalSellerEarnings = totalAmount - totalPlatformFee;
+
+    // Check stock *after* calculating, just in case
     for (const item of cart.items) {
       if (item.productId.stock < item.quantity) {
-        return res.status(400).json({
-          message: `Not enough stock for '${item.productId.name}'. Available: ${item.productId.stock}, Requested: ${item.quantity}.`,
-        });
+        return res
+          .status(400)
+          .json({ message: `Not enough stock for ${item.productId.name}.` });
       }
     }
 
+    // --- CREATE THE PERMANENT ORDER RECORD ---
     const order = await Order.create({
       userId: buyer._id,
       items: cart.items.map((item) => ({
         productId: item.productId._id,
         quantity: item.quantity,
         price: item.price,
-        storeId: item.productId.store, 
+        storeId: item.productId.storeId, // NOTE: Changed from store to storeId based on your product schema
       })),
-      totalAmount,
       shippingAddress,
       payment: { method: "COD", status: "pending" },
+
+      // FIX #2: Save all the calculated financial data to the order
+      totalAmount: totalAmount.toFixed(2),
+      platformFee: totalPlatformFee.toFixed(2),
+      sellerEarnings: totalSellerEarnings.toFixed(2),
     });
 
+    // Clear the cart
     cart.items = [];
     cart.status = "ordered";
     await cart.save();
@@ -70,7 +100,7 @@ export const getUserOrders = async (req, res) => {
       return res.status(404).json({ message: "Buyer profile not found." });
 
     const orders = await Order.find({ userId: buyer._id })
-      .populate("items.productId", "title images") 
+      .populate("items.productId", "title images")
       .sort({ createdAt: -1 });
 
     if (orders.length === 0) {
@@ -102,11 +132,9 @@ export const getOrderById = async (req, res) => {
     );
 
     if (!order) {
-      return res
-        .status(404)
-        .json({
-          message: "Order not found or you do not have permission to view it.",
-        });
+      return res.status(404).json({
+        message: "Order not found or you do not have permission to view it.",
+      });
     }
 
     return res
@@ -118,7 +146,6 @@ export const getOrderById = async (req, res) => {
       .json({ message: "Internal Server Error", error: error.message });
   }
 };
-
 
 export const cancelOrder = async (req, res) => {
   try {
@@ -135,22 +162,18 @@ export const cancelOrder = async (req, res) => {
       orderToCancel.status !== "pending" &&
       orderToCancel.status !== "processing"
     ) {
-      return res
-        .status(400)
-        .json({
-          message: "Order cannot be canceled once it has been shipped.",
-        });
+      return res.status(400).json({
+        message: "Order cannot be canceled once it has been shipped.",
+      });
     }
 
     orderToCancel.status = "cancelled";
 
     await orderToCancel.save();
-    return res
-      .status(200)
-      .json({
-        message: "Order is canceled successfully.",
-        data: orderToCancel,
-      });
+    return res.status(200).json({
+      message: "Order is canceled successfully.",
+      data: orderToCancel,
+    });
   } catch (error) {
     return res
       .status(500)
@@ -205,7 +228,6 @@ export const updateOrderStatus = async (req, res) => {
 
 export const getStoreOrders = async (req, res) => {
   try {
-    
     const seller = await Seller.findOne({ userId: req.user.id });
     if (!seller)
       return res.status(404).json({ message: "Seller profile not found." });
@@ -216,7 +238,7 @@ export const getStoreOrders = async (req, res) => {
 
     const orders = await Order.find({ "items.storeId": seller.storeId })
       .populate("items.productId", "title price images")
-      .populate("userId", "name email") 
+      .populate("userId", "name email")
       .sort({ createdAt: -1 });
 
     if (orders.length === 0) {

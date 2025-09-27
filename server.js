@@ -8,7 +8,8 @@ import storeRoutes from "./routes/storeRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
-import orderRoutes from "./routes/orderRoutes.js"
+import orderRoutes from "./routes/orderRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use("/api/v1", productRoutes);
 app.use("/api/v1", wishlistRoutes);
 app.use("/api/v1", cartRoutes);
 app.use("/api/v1/order", orderRoutes);
+app.use("/api/v1/category", categoryRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
