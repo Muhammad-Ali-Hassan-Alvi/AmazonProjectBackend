@@ -18,37 +18,36 @@ export const createOrder = async (req, res) => {
       status: "active",
     }).populate({
       path: "items.productId",
-      select: "name stock storeId category", // NOTE: I changed 'store' to 'storeId' from your schema
-      populate: {
-        path: "category",
-        select: "commissionRate",
-      },
+      select: "title price stock store", 
     });
 
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: "Your cart is empty." });
     }
 
-    // Initialize our counters
+    // Initialize totals
     let totalAmount = 0;
-    let totalPlatformFee = 0;
+    let totalPlatformFee = 0; // placeholder if you add commissions later
+    let totalSellerEarnings = 0;
 
     // --- CALCULATION LOOP ---
     for (const item of cart.items) {
-      if (!item.productId || !item.productId.category) {
-        throw new Error(
-          `Product data is incomplete for item ${item.productId?._id}. Cannot calculate fees.`
-        );
+      if (!item.productId) {
+        throw new Error(`Product data is incomplete for an item. Cannot calculate totals.`);
       }
-      const itemTotal = item.price * item.quantity;
-      const commissionRate = item.productId.category.commissionRate / 100;
 
-      // Add to the grand totals
+      // Always trust product.price from populated product, not item.price if uncertain
+      const unitPrice = Number(item.price ?? item.productId.price);
+      const qty = Number(item.quantity);
+      if (!Number.isFinite(unitPrice) || !Number.isFinite(qty)) {
+        throw new Error(`Invalid price or quantity for product ${item.productId?._id}`);
+      }
+
+      const itemTotal = unitPrice * qty;
       totalAmount += itemTotal;
-      totalPlatformFee += itemTotal * commissionRate; // FIX #1: Use += to accumulate the fees
     }
 
-    const totalSellerEarnings = totalAmount - totalPlatformFee;
+    totalSellerEarnings = totalAmount - totalPlatformFee;
 
     // Check stock *after* calculating, just in case
     for (const item of cart.items) {
@@ -65,16 +64,16 @@ export const createOrder = async (req, res) => {
       items: cart.items.map((item) => ({
         productId: item.productId._id,
         quantity: item.quantity,
-        price: item.price,
-        storeId: item.productId.storeId, // NOTE: Changed from store to storeId based on your product schema
+        price: item.price ?? item.productId.price,
+        storeId: item.productId.store,
       })),
       shippingAddress,
       payment: { method: "COD", status: "pending" },
 
-      // FIX #2: Save all the calculated financial data to the order
-      totalAmount: totalAmount.toFixed(2),
-      platformFee: totalPlatformFee.toFixed(2),
-      sellerEarnings: totalSellerEarnings.toFixed(2),
+      // Save numeric totals
+      totalAmount: Number(totalAmount),
+      platformFee: Number(totalPlatformFee),
+      sellerEarnings: Number(totalSellerEarnings),
     });
 
     // Clear the cart
@@ -181,7 +180,7 @@ export const cancelOrder = async (req, res) => {
   }
 };
 
-// --- UPDATE ORDER STATUS (FOR SELLER/ADMIN) ---
+
 export const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -195,7 +194,7 @@ export const updateOrderStatus = async (req, res) => {
     if (!allowedStatuses.includes(status))
       return res.status(400).json({ message: "Invalid status update." });
 
-    // This logic is correct and well-implemented.
+    
     if (status === "shipped" && oldStatus !== "shipped") {
       for (const item of order.items) {
         await Product.findByIdAndUpdate(item.productId, {

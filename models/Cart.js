@@ -42,6 +42,12 @@ const cartSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Ensure only one active cart per user
+cartSchema.index(
+  { userId: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: "active" } }
+);
+
 cartSchema.pre("save", function (next) {
   this.total = this.items.reduce(
     (sum, item) => sum + item.quantity * item.price,

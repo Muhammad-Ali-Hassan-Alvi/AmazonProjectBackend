@@ -4,7 +4,7 @@ import { Product } from "../models/Product.js";
 
 export const getUserCart = async (req, res) => {
   try {
-    const user = await Buyer.findOne({ userId: req.user.id });
+    const user = await Buyer.findOne({ userId: req?.user?.id });
     if (!user) {
       return res.status(404).json({ message: "User not Found" });
     }
@@ -53,13 +53,18 @@ export const addToCart = async (req, res) => {
       return res.status(404).json({ message: "Buyers record not Found" });
     }
 
-    let cart = await Cart.findOne({ userId: buyer._id });
+    let cart = await Cart.findOne({ userId: buyer._id, status: "active" });
 
     if (!cart) {
       cart = new Cart({
         userId: buyer._id,
         items: [],
+        status: "active",
       });
+    }
+
+    if (cart.status !== "active") {
+      return res.status(409).json({ message: "Cannot modify a non-active cart." });
     }
 
     const itemIndex = cart.items.findIndex(
@@ -99,7 +104,7 @@ export const updateItemQuantity = async (req, res) => {
       return res.status(404).json({ message: "Buyer profile not found" });
     }
 
-    const cart = await Cart.findOne({ userId: buyer._id });
+    const cart = await Cart.findOne({ userId: buyer._id, status: "active" });
 
     if (!cart) {
       return res.status(404).json({ message: "Nothing in the cart " });
@@ -117,7 +122,11 @@ export const updateItemQuantity = async (req, res) => {
       return res.status(404).json({ message: "Not enough stock" });
     }
 
-    cart.items[itemIndex].quantity === quantity;
+    if (cart.status !== "active") {
+      return res.status(409).json({ message: "Cannot modify a non-active cart." });
+    }
+
+    cart.items[itemIndex].quantity = quantity;
 
     await cart.save();
 
@@ -135,17 +144,21 @@ export const updateItemQuantity = async (req, res) => {
 
 export const removeItem = async (req, res) => {
   try {
-    const productId = req.params;
+    const { productId } = req.params;
     const buyer = await Buyer.findOne({ userId: req.user.id });
 
     if (!buyer) {
       return res.status(404).json({ message: "Buyer Data not Found" });
     }
 
-    const cart = await Cart.findOne({ userId: buyer._id });
+    const cart = await Cart.findOne({ userId: buyer._id, status: "active" });
 
     if (!cart) {
       return res.status(404).json({ message: "Cart is empty" });
+    }
+
+    if (cart.status !== "active") {
+      return res.status(409).json({ message: "Cannot modify a non-active cart." });
     }
 
     const updatedCart = await Cart.findByIdAndUpdate(
@@ -178,9 +191,13 @@ export const clearCart = async (req, res) => {
       return res.status(404).json({ message: "Buyer not found" });
     }
 
-    const cart = await Cart.findOne({ userId: buyer._id });
+    const cart = await Cart.findOne({ userId: buyer._id, status: "active" });
     if (!cart) {
       return res.status(404).json({ message: "Cart not Found for this User" });
+    }
+
+    if (cart.status !== "active") {
+      return res.status(409).json({ message: "Cannot modify a non-active cart." });
     }
 
     cart.items = [];

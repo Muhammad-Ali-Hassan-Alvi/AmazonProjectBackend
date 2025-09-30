@@ -31,11 +31,11 @@ const categorySchema = new mongoose.Schema(
       default: true,
     },
     // For V2: to create sub-categories like Electronics -> Laptops
-    parent: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Category",
-      default: null,
-    },
+    // parent: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "Category",
+    //   default: null,
+    // },
   },
   { timestamps: true }
 );

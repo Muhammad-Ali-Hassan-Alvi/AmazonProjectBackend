@@ -3,9 +3,9 @@ import Category from "../models/Category.js";
 
 export const createCategory = async (req, res) => {
   try {
-    const { name, commisionRate, image } = req.body;
+    const { name, commissionRate, image } = req.body;
 
-    const categoryExists = Category.findOne({ name });
+    const categoryExists = await Category.findOne({ name });
     if (categoryExists) {
       return res
         .status(400)
@@ -14,7 +14,7 @@ export const createCategory = async (req, res) => {
 
     const category = new Category({
       name,
-      commisionRate,
+      commissionRate,
       image,
     });
 
@@ -22,7 +22,7 @@ export const createCategory = async (req, res) => {
 
     return res.status(200).json({
       message: "New Category created successfully",
-      data: createCategory,
+      data: createdCategory,
     });
   } catch (error) {
     return res
@@ -33,9 +33,9 @@ export const createCategory = async (req, res) => {
 
 export const getCategoryById = async (req, res) => {
   try {
-    const id = req.params;
+    const { id } = req.params;
 
-    const category = await Category.findOne({ id });
+    const category = await Category.findById(id);
 
     if (!category) {
       return res.status(404).json({ message: "Category doesn't exist" });
@@ -71,10 +71,10 @@ export const getCategories = async (req, res) => {
 
 export const updateCategory = async (req, res) => {
   try {
-    const id = req.params;
-    const { name, commisionRate, isActive } = req.body;
+    const { id } = req.params;
+    const { name, commissionRate, isActive } = req.body;
 
-    const category = await Category.findById({ id });
+    const category = await Category.findById( id );
 
     if (!category) {
       return res
@@ -89,8 +89,8 @@ export const updateCategory = async (req, res) => {
       updatedFields.slug = slugify(name, { lower: true, strict: true });
     }
 
-    if (commisionRate !== undefined) {
-      updatedFields.commisionRate = commisionRate;
+    if (commissionRate !== undefined) {
+      updatedFields.commissionRate = commissionRate;
     }
 
     if (isActive !== undefined) {
@@ -119,8 +119,8 @@ export const updateCategory = async (req, res) => {
 
 export const deleteCategory = async (req, res) => {
   try {
-    const id = req.params;
-    const category = await Category.findById({ id });
+    const { id } = req.params;
+    const category = await Category.findById( id );
 
     if (!category) {
       return res
@@ -134,12 +134,10 @@ export const deleteCategory = async (req, res) => {
       return res.status(400).json({ message: "Unable to delete the category" });
     }
 
-    return res
-      .status(200)
-      .json({
-        message: "Category deleted Successfully",
-        data: deletedCategory,
-      });
+    return res.status(200).json({
+      message: "Category deleted Successfully",
+      data: deletedCategory,
+    });
   } catch (error) {
     return res
       .status(500)
