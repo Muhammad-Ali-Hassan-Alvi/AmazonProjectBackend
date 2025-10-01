@@ -3,9 +3,14 @@ import Buyer from "../models/Buyer.js";
 import Cart from "../models/Cart.js";
 import { Product } from "../models/Product.js";
 import Seller from "../models/Seller.js";
+import mongoose from "mongoose";
+import Ledger from "../models/Ledger.js";
+import Transaction from "../models/Transaction.js";
 
 export const createOrder = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
+    session.startTransaction();
     const { shippingAddress } = req.body;
 
     const buyer = await Buyer.findOne({ userId: req.user.id });
@@ -18,7 +23,8 @@ export const createOrder = async (req, res) => {
       status: "active",
     }).populate({
       path: "items.productId",
-      select: "title price stock store", 
+      select: "title price stock store category",
+      populate: { path: "category", select: "commissionRate" },
     });
 
     if (!cart || cart.items.length === 0) {
@@ -27,7 +33,7 @@ export const createOrder = async (req, res) => {
 
     // Initialize totals
     let totalAmount = 0;
-    let totalPlatformFee = 0; // placeholder if you add commissions later
+    let totalPlatformFee = 0;
     let totalSellerEarnings = 0;
 
     // --- CALCULATION LOOP ---
@@ -39,15 +45,25 @@ export const createOrder = async (req, res) => {
       // Always trust product.price from populated product, not item.price if uncertain
       const unitPrice = Number(item.price ?? item.productId.price);
       const qty = Number(item.quantity);
+      const categoryRatePercent = item.productId?.category?.commissionRate;
+      const rate = Number.isFinite(categoryRatePercent)
+        ? Number(categoryRatePercent) / 100
+        : Number(process.env.DEFAULT_COMMISSION_RATE ?? 0);
       if (!Number.isFinite(unitPrice) || !Number.isFinite(qty)) {
         throw new Error(`Invalid price or quantity for product ${item.productId?._id}`);
       }
 
       const itemTotal = unitPrice * qty;
-      totalAmount += itemTotal;
-    }
+      const itemPlatformFee = itemTotal * rate;
+      const itemSellerEarnings = itemTotal - itemPlatformFee;
 
-    totalSellerEarnings = totalAmount - totalPlatformFee;
+      // attach to item for later mapping
+      item._calc = { itemTotal, itemPlatformFee, itemSellerEarnings, rate };
+
+      totalAmount += itemTotal;
+      totalPlatformFee += itemPlatformFee;
+      totalSellerEarnings += itemSellerEarnings;
+    }
 
     // Check stock *after* calculating, just in case
     for (const item of cart.items) {
@@ -59,13 +75,18 @@ export const createOrder = async (req, res) => {
     }
 
     // --- CREATE THE PERMANENT ORDER RECORD ---
-    const order = await Order.create({
+    const order = await Order.create([
+      {
       userId: buyer._id,
       items: cart.items.map((item) => ({
         productId: item.productId._id,
         quantity: item.quantity,
         price: item.price ?? item.productId.price,
         storeId: item.productId.store,
+        itemTotal: item._calc.itemTotal,
+        itemPlatformFee: item._calc.itemPlatformFee,
+        itemSellerEarnings: item._calc.itemSellerEarnings,
+        itemCommissionRate: item._calc.rate,
       })),
       shippingAddress,
       payment: { method: "COD", status: "pending" },
@@ -74,17 +95,72 @@ export const createOrder = async (req, res) => {
       totalAmount: Number(totalAmount),
       platformFee: Number(totalPlatformFee),
       sellerEarnings: Number(totalSellerEarnings),
-    });
+      financialCalculatedAt: new Date(),
+      }
+    ], { session })
+      .then((docs) => docs[0]);
+
+    // Create ledger for the order
+    const ledger = await Ledger.create([
+      {
+        orderId: order._id,
+        subtotal: Number(totalAmount),
+        shippingFee: 0,
+        taxes: 0,
+        discounts: 0,
+        grandTotal: Number(totalAmount),
+        totalPlatformFee: Number(totalPlatformFee),
+        totalSellerEarnings: Number(totalSellerEarnings),
+        paymentStatus: "pending",
+        currency: "USD",
+      }
+    ], { session }).then((docs) => docs[0]);
+
+    // Link order to ledger
+    order.ledgerId = ledger._id;
+    await order.save({ session });
+
+    // Create per-item transactions (sale and platform fee)
+    const txns = [];
+    for (const item of order.items) {
+      // Seller sale
+      txns.push({
+        ledgerId: ledger._id,
+        storeId: item.storeId,
+        orderItemId: undefined,
+        type: "sale",
+        amount: item.itemSellerEarnings,
+        description: `Sale earnings for product ${item.productId}`,
+      });
+      // Platform fee
+      if (item.itemPlatformFee && item.itemPlatformFee !== 0) {
+        txns.push({
+          ledgerId: ledger._id,
+          storeId: undefined,
+          orderItemId: undefined,
+          type: "platform_fee",
+          amount: item.itemPlatformFee,
+          description: `Platform fee for product ${item.productId}`,
+        });
+      }
+    }
+    if (txns.length > 0) {
+      await Transaction.insertMany(txns, { session });
+    }
 
     // Clear the cart
     cart.items = [];
     cart.status = "ordered";
-    await cart.save();
+    await cart.save({ session });
 
+    await session.commitTransaction();
+    session.endSession();
     return res
       .status(201)
       .json({ message: "Order placed successfully!", data: order });
   } catch (error) {
+    await session.abortTransaction().catch(() => {});
+    session.endSession();
     console.error("Create Order Error:", error);
     return res
       .status(500)
@@ -211,6 +287,10 @@ export const updateOrderStatus = async (req, res) => {
 
     if (status === "delivered" && order.payment.method === "COD") {
       order.payment.status = "paid";
+      // reflect in ledger
+      if (order.ledgerId) {
+        await Ledger.findByIdAndUpdate(order.ledgerId, { paymentStatus: "paid" });
+      }
     }
 
     order.status = status;

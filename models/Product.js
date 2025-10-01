@@ -22,6 +22,7 @@ const productSchema = new mongoose.Schema(
     ],
     category: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
       required: true,
     },
     brand: {
@@ -47,6 +48,13 @@ const productSchema = new mongoose.Schema(
     store: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Store",
+    },
+    commissionRate: {
+      // decimal fraction, e.g. 0.13 for 13%
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 1,
     },
     isFeatured: {
       type: Boolean,
