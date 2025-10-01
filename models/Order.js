@@ -20,6 +20,24 @@ const orderItemSchema = new mongoose.Schema(
       ref: "Store",
       required: true,
     },
+    // Per-item immutable financials (calculated at order creation)
+    itemTotal: {
+      type: Number,
+      default: 0,
+    },
+    itemPlatformFee: {
+      type: Number,
+      default: 0,
+    },
+    itemSellerEarnings: {
+      type: Number,
+      default: 0,
+    },
+    itemCommissionRate: {
+      // stored as decimal fraction, e.g. 0.13 for 13%
+      type: Number,
+      default: 0,
+    },
   },
   { _id: false }
 );
@@ -69,9 +87,17 @@ const orderSchema = new mongoose.Schema(
     sellerEarnings: {
       type: Number,
       default: 0
-    }
+    },
+    financialCalculatedAt: {
+      type: Date,
+    },
+    ledgerId: { type: mongoose.Schema.Types.ObjectId, ref: "Ledger" }
   },
   { timestamps: true }
 );
+
+// Helpful indexes for common queries
+orderSchema.index({ "items.storeId": 1, status: 1, "payment.status": 1, createdAt: -1 });
+orderSchema.index({ userId: 1, createdAt: -1 });
 
 export default mongoose.model("Order", orderSchema);
